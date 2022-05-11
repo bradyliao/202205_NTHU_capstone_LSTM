@@ -1,27 +1,29 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-
-
-
 # Import the libraries
 import numpy as np
 import matplotlib.pyplot as plt  # for 畫圖用
 import pandas as pd
 
-# Import the training set
-dataset_train = pd.read_csv('googl.us.txt')  # 讀取訓練集
-training_set = dataset_train.iloc[:, 1:2].values  # 取「Open」欄位值
 
+# Import the dataset
+dataset = pd.read_csv('googl.us.csv')  # 讀取訓練集
 
-total_num_data = len(training_set)
-total_num_training = total_num_data *2/3
-total_num_testing = total_num_data *1/3
-
+total_num_data = len(dataset)
+total_num_training = int(total_num_data *2/3)
+total_num_testing = int(total_num_data *1/3)
 print(total_num_training)
 print(total_num_testing)
 
 
-'''
+
+training_set = dataset.iloc[:total_num_training, 1:2].values  # 取「Open」欄位值
+print(len(training_set))
+
+
+
+
+
 
 # Feature Scaling
 from sklearn.preprocessing import MinMaxScaler
@@ -33,7 +35,7 @@ training_set_scaled = sc.fit_transform(training_set)
 
 X_train = []   #預測點的前 60 天的資料
 y_train = []   #預測點
-for i in range(60, 1258):  # 1258 是訓練集總數
+for i in range(60, total_num_training):  # total_num_training 是訓練集總數
     X_train.append(training_set_scaled[i-60:i, 0])
     y_train.append(training_set_scaled[i, 0])
 X_train, y_train = np.array(X_train), np.array(y_train)  # 轉成numpy array的格式，以利輸入 RNN
@@ -88,23 +90,26 @@ regressor.add(Dense(units = 1))
 regressor.compile(optimizer = 'adam', loss = 'mean_squared_error')
 
 # 進行訓練
-regressor.fit(X_train, y_train, epochs = 100, batch_size = 32)
+regressor.fit(X_train, y_train, epochs = 40, batch_size = 64)
 
 
 
 
-dataset_test = pd.read_csv('Google_Stock_Price_Test.csv')
-real_stock_price = dataset_test.iloc[:, 1:2].values
+#dataset_test = pd.read_csv('Google_Stock_Price_Test.csv')
+#real_stock_price = dataset_test.iloc[:, 1:2].values
+real_stock_price = dataset.iloc[total_num_training:, 1:2].values
+print(len(real_stock_price))
 
 
 
-dataset_total = pd.concat((dataset_train['Open'], dataset_test['Open']), axis = 0)
-inputs = dataset_total[len(dataset_total) - len(dataset_test) - 60:].values
+#dataset_total = pd.concat((dataset_train['Open'], dataset_test['Open']), axis = 0)
+#inputs = dataset_total[len(dataset_total) - len(dataset_test) - 60:].values
+inputs = dataset['Open'][total_num_training-60:].values
 inputs = inputs.reshape(-1,1)
 inputs = sc.transform(inputs) # Feature Scaling
 
 X_test = []
-for i in range(60, 80):  # timesteps一樣60； 80 = 先前的60天資料+2017年的20天資料
+for i in range(60, 60+total_num_testing):  # timesteps一樣60； 80 = 先前的60天資料+2017年的20天資料
     X_test.append(inputs[i-60:i, 0])
 X_test = np.array(X_test)
 X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))  # Reshape 成 3-dimension
@@ -124,8 +129,3 @@ plt.xlabel('Time')
 plt.ylabel('Google Stock Price')
 plt.legend()
 plt.show()
-
-
-
-
-'''
