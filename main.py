@@ -1,14 +1,16 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 2
+num_of_epochs = 40
 num_of_batch_size = 32
 timesteps = 60
 days_forward = 20 # predicting how many days forward, 0 being the immediate next
 features = ['Open','High', 'Low', 'Close']
 num_of_features = len(features)
+test_size_portion = 0.1
 
 # ----------------------------------------------------------------------------------------
 # Import the libraries
+from turtle import shape
 import numpy as np
 import matplotlib.pyplot as plt  # for ploting results
 import pandas as pd
@@ -22,60 +24,74 @@ dataset = dataset_in[features]
 
 # calculate total num of data
 total_num_data = len(dataset)
-total_num_training = int(total_num_data * 0.9)
-total_num_testing = int(total_num_data * 0.1)
-
-
-# training set
-training_set = dataset.iloc[:total_num_training].values
-assert num_of_features == training_set.shape[1]
-
-# testing set
-testing_set = dataset[total_num_training-timesteps:].values
-assert num_of_features == testing_set.shape[1]
-
-
 
 # ----------------------------------------------------------------------------------------
-# Feature Scaling
+# new
+
+
+
+X = []   #預測點的前 timesteps 天的資料
+y = []   #預測點
+for i in range(timesteps, total_num_data - days_forward):
+    X.append( dataset.iloc [ i - timesteps : i , 0 : num_of_features ]) # data of features
+    y.append( dataset.iloc [ i + days_forward , 0:1] ) # data of the target value
+
+
 from sklearn.preprocessing import MinMaxScaler
 
-sc = MinMaxScaler(feature_range = (0, 1))
-training_set_scaled = sc.fit_transform(training_set)
+scale_X = MinMaxScaler(feature_range = (0, 1))
+X = scale_X.fit_transform(X)
 
-sc1 = MinMaxScaler(feature_range = (0, 1))
-temp = sc1.fit_transform(training_set[:,0:1])
-
-
-testing_set = testing_set.reshape(-1, testing_set.shape[1])
-testing_set_scaled = sc.transform(testing_set) # Feature Scaling
+scale_y = MinMaxScaler(feature_range = (0, 1))
+y = scale_y.fit_transform(y)
 
 
-# ----------------------------------------------------------------------------------------
-# generate batch
-X_train = []   #預測點的前 timesteps 天的資料
-y_train = []   #預測點
-for i in range(timesteps, total_num_training - days_forward):
-    X_train.append( training_set_scaled [ i - timesteps : i , 0 : num_of_features ] ) # data of features
-    y_train.append( training_set_scaled [ i + days_forward , 0] ) # data of the target value
-X_train, y_train = np.array(X_train), np.array(y_train)  # 轉成numpy array的格式，以利輸入 RNN
-#print(y_train.shape)
+
+
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size_portion, shuffle = False)
+
+print(X_test)
+
+
+X_train, y_train, X_test, y_test = np.array(X_train), np.array(y_train), np.array(X_test), np.array(y_test)   # 轉成numpy array的格式，以利輸入 RNN
+
+
+print(y_test)
+
+
+'''
+from sklearn.preprocessing import MinMaxScaler
+
+scale_X_train = MinMaxScaler(feature_range = (0, 1))
+X_train = scale_X_train.fit_transform(X_train)
+
+scale_y_train = MinMaxScaler(feature_range = (0, 1))
+y_train = scale_y_train.fit_transform(y_train)
+
+scale_X_test = MinMaxScaler(feature_range = (0, 1))
+X_test = scale_X_test.fit_transform(X_test)
+
+scale_y_test = MinMaxScaler(feature_range = (0, 1))
+y_test = scale_y_test.fit_transform(y_test)
+
+
+
+
+
+
+
+print(y_train.shape)
 
 X_train = np.reshape( X_train, ( X_train.shape[0], X_train.shape[1], X_train.shape[2] ) )
 assert num_of_features == X_train.shape[2]
 
 
+# new
+# ----------------------------------------------------------------------------------------
 
-
-
-X_test = []
-for i in range(timesteps, timesteps + total_num_testing):  
-    X_test.append(testing_set_scaled[ i - timesteps : i , 0 : num_of_features ])
-X_test = np.array(X_test)
-assert num_of_features == X_test.shape[2]
-X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], X_test.shape[2]))  # Reshape 成 3-dimension
-
-
+'''
 
 
 
@@ -93,6 +109,8 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
+from keras.layers import BatchNormalization
+
 
 # Initialising the RNN
 model = Sequential()
@@ -158,13 +176,13 @@ plt.show()
 
 
 predicted_stock_price = model.predict(X_test)
-predicted_stock_price = sc1.inverse_transform(predicted_stock_price)  # to get the original scale
+predicted_stock_price = scale_y.inverse_transform(predicted_stock_price)  # to get the original scale
 
 
 
 
 # Visualising the results
-real_stock_price = dataset.iloc[total_num_training:, 1:2].values
+real_stock_price = scale_y.inverse_transform(y_test)
 plt.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')  # 紅線表示真實股價
 plt.plot(predicted_stock_price, color = 'blue', label = 'Predicted Google Stock Price')  # 藍線表示預測股價
 plt.title('Google Stock Price Prediction')
@@ -174,7 +192,5 @@ configuration = "Epochs: " + str(num_of_epochs) + " , Batch size: " + str(num_of
 plt.figtext(0.6, 0.02, configuration, wrap = True, fontsize=12)
 plt.legend()
 plt.show()
-
-
 
 
