@@ -1,12 +1,15 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
+
+
+
+
 # Import the libraries
 import numpy as np
 import matplotlib.pyplot as plt  # for 畫圖用
 import pandas as pd
 
-
-# Import the dataset
+# Import the training set
 dataset = pd.read_csv('googl.us.csv')  # 讀取訓練集
 
 total_num_data = len(dataset)
@@ -17,7 +20,7 @@ print(total_num_testing)
 
 
 
-training_set = dataset.iloc[:total_num_training, 1:2].values  # 取「Open」欄位值
+training_set = dataset.iloc[:total_num_training, 4:5].values  # 取「Open」欄位值
 print(len(training_set))
 
 
@@ -90,21 +93,21 @@ regressor.add(Dense(units = 1))
 regressor.compile(optimizer = 'adam', loss = 'mean_squared_error')
 
 # 進行訓練
-regressor.fit(X_train, y_train, epochs = 40, batch_size = 64)
+regressor.fit(X_train, y_train, epochs = 20, batch_size = 32)
 
 
 
 
 #dataset_test = pd.read_csv('Google_Stock_Price_Test.csv')
 #real_stock_price = dataset_test.iloc[:, 1:2].values
-real_stock_price = dataset.iloc[total_num_training:, 1:2].values
+real_stock_price = dataset.iloc[total_num_training:, 4:5].values
 print(len(real_stock_price))
 
 
 
-#dataset_total = pd.concat((dataset_train['Open'], dataset_test['Open']), axis = 0)
+#dataset_total = pd.concat((dataset_train['Close'], dataset_test['Close']), axis = 0)
 #inputs = dataset_total[len(dataset_total) - len(dataset_test) - 60:].values
-inputs = dataset['Open'][total_num_training-60:].values
+inputs = dataset['Close'][total_num_training-60:].values
 inputs = inputs.reshape(-1,1)
 inputs = sc.transform(inputs) # Feature Scaling
 
@@ -129,3 +132,8 @@ plt.xlabel('Time')
 plt.ylabel('Google Stock Price')
 plt.legend()
 plt.show()
+
+
+
+
+
