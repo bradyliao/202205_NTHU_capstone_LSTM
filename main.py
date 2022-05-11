@@ -1,9 +1,9 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 40
+num_of_epochs = 2
 num_of_batch_size = 32
 timesteps = 60
-days_forward = 0 # predicting how many days after, 0 being the immediate next
+days_forward = 20 # predicting how many days forward, 0 being the immediate next
 features = ['Open','High', 'Low', 'Close']
 num_of_features = len(features)
 
@@ -55,9 +55,9 @@ testing_set_scaled = sc.transform(testing_set) # Feature Scaling
 # generate batch
 X_train = []   #預測點的前 timesteps 天的資料
 y_train = []   #預測點
-for i in range(timesteps, total_num_training):
-    X_train.append( training_set_scaled [i-timesteps:i, 0:num_of_features] ) # data of features
-    y_train.append( training_set_scaled [i, 0] ) # data of the target value
+for i in range(timesteps, total_num_training - days_forward):
+    X_train.append( training_set_scaled [ i - timesteps : i , 0 : num_of_features ] ) # data of features
+    y_train.append( training_set_scaled [ i + days_forward , 0] ) # data of the target value
 X_train, y_train = np.array(X_train), np.array(y_train)  # 轉成numpy array的格式，以利輸入 RNN
 #print(y_train.shape)
 
@@ -70,7 +70,7 @@ assert num_of_features == X_train.shape[2]
 
 X_test = []
 for i in range(timesteps, timesteps + total_num_testing):  
-    X_test.append(testing_set_scaled[i-timesteps:i, 0:num_of_features])
+    X_test.append(testing_set_scaled[ i - timesteps : i , 0 : num_of_features ])
 X_test = np.array(X_test)
 assert num_of_features == X_test.shape[2]
 X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], X_test.shape[2]))  # Reshape 成 3-dimension
