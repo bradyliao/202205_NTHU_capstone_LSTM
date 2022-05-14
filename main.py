@@ -1,6 +1,6 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 1
+num_of_epochs = 20
 num_of_batch_size = 256
 timesteps = 60
 days_forward = 1 # predicting how many days forward, 0 being the immediate next
@@ -125,11 +125,15 @@ history = model.fit(X_train, y_train, validation_split = 0.2, shuffle = True, ep
 
 predicted_stock_price = model.predict(X_test)
 predicted_stock_price = scale_y_test.inverse_transform(predicted_stock_price)  # to get the original scale
-temp = []
+
+# ----------------------------------------------------------------------------------------
+# shift right timesteps
+
+predicted_stock_price_shifted = []
 for i in range(0, timesteps):
-    temp.append(None)
+    predicted_stock_price_shifted.append(None)
 for i in predicted_stock_price:
-    temp.append(i[0])
+    predicted_stock_price_shifted.append(i[0])
 
 
 
@@ -166,7 +170,7 @@ plot_accu.legend(['Train', 'Validation'], loc='upper left')
 # Visualising the test results
 real_stock_price = scale_y_test.inverse_transform(y_test_scale)
 plot_test.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')  # 紅線表示真實股價
-plot_test.plot(temp, color = 'blue', label = 'Predicted Google Stock Price')  # 藍線表示預測股價
+plot_test.plot(predicted_stock_price_shifted, color = 'blue', label = 'Predicted Google Stock Price')  # 藍線表示預測股價
 plot_test.set_title('Google Stock Price Prediction')
 plot_test.set_xlabel('Time')
 plot_test.set_ylabel('Google Stock Price')
@@ -174,9 +178,10 @@ plot_test.legend()
 
 
 # Packing all the plots and displaying them
-configuration = "Epochs: " + str(num_of_epochs) + " , Batch size: " + str(num_of_batch_size) + " , Timesteps: " + str(timesteps) + " , \nDays forward: " + str(days_forward) + " , Test size: " + str(test_size_portion)
+configuration = "Epochs: " + str(num_of_epochs) + " , Batch size: " + str(num_of_batch_size) + " , Timesteps: " + str(timesteps) \
+    + " , Days forward: " + str(days_forward) + " , Test size: " + str(test_size_portion)
     # + " , \nFeatures: " + str( *features, sep=', ' )
-plt.figtext(0.9, 0.1, configuration, horizontalalignment='right', verticalalignment='bottom', wrap = True, fontsize=12)
+plt.figtext(0.9, 0.01, configuration, horizontalalignment = 'right', verticalalignment = 'bottom', wrap = True, fontsize = 12)
 plt.tight_layout()
 plt.show()
 
