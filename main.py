@@ -1,9 +1,9 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 2
-num_of_batch_size = 256
+num_of_epochs = 50
+num_of_batch_size = 32
 timesteps = 60
-days_forward = 1 # predicting how many days forward, 0 being the immediate next
+days_forward = 0 # predicting how many days forward, 0 being the immediate next
 features = ['Open','High', 'Low', 'Volume']
 target = ['Open']
 num_of_features = len(features)
