@@ -8,7 +8,7 @@ features = ['Open','High', 'Low', 'Close', 'Volume']
 target = ['Open']
 num_of_features = len(features)
 test_size_portion = 0.1
-dropout_rate = 0.1
+dropout_rate = 0.2
 
 # ----------------------------------------------------------------------------------------
 # Import the libraries
