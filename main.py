@@ -1,6 +1,6 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 20
+num_of_epochs = 2
 num_of_batch_size = 256
 timesteps = 60
 days_forward = 1 # predicting how many days forward, 0 being the immediate next
@@ -119,12 +119,11 @@ model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
 history = model.fit(X_train, y_train, validation_split = 0.2, shuffle = True, epochs = num_of_epochs, batch_size = num_of_batch_size)
 
 
-
 # ----------------------------------------------------------------------------------------
 # predict
-
 predicted_stock_price = model.predict(X_test)
 predicted_stock_price = scale_y_test.inverse_transform(predicted_stock_price)  # to get the original scale
+
 
 # ----------------------------------------------------------------------------------------
 # shift right timesteps
@@ -136,11 +135,8 @@ for i in predicted_stock_price:
     predicted_stock_price_shifted.append(i[0])
 
 
-
-
 # ----------------------------------------------------------------------------------------
 # visualize 
-
 
 import matplotlib.pyplot as plt  # for ploting results
 
