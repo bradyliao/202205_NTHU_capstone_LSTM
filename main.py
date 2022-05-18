@@ -1,10 +1,10 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 50
+num_of_epochs = 1
 num_of_batch_size = 32
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
-features = ['Open','High', 'Low', 'Volume']
+features = ['Open','High', 'Low', 'Close', 'Volume']
 target = ['Open']
 num_of_features = len(features)
 test_size_portion = 0.1
@@ -173,17 +173,14 @@ plot_test.set_ylabel('Google Stock Price')
 plot_test.legend()
 
 
+feature_all = ''
+for i in features:
+    feature_all = feature_all + i + ", "
+
 # Packing all the plots and displaying them
 configuration = "Epochs: " + str(num_of_epochs) + " , Batch size: " + str(num_of_batch_size) + " , Timesteps: " + str(timesteps) \
-    + " , Days forward: " + str(days_forward) + " , Test size: " + str(test_size_portion)
-    # + " , \nFeatures: " + str( *features, sep=', ' )
+    + " , Days forward: " + str(days_forward) + " , Test size: " + str(test_size_portion) \
+    + " , Features: " + feature_all + "Target: " + target[0]
 plt.figtext(0.9, 0.01, configuration, horizontalalignment = 'right', verticalalignment = 'bottom', wrap = True, fontsize = 12)
 plt.tight_layout()
 plt.show()
-
-
-'''
-
-hello how are you
-
-'''
