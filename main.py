@@ -1,6 +1,6 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 1
+num_of_epochs = 50
 num_of_batch_size = 32
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
@@ -8,6 +8,7 @@ features = ['Open','High', 'Low', 'Close', 'Volume']
 target = ['Open']
 num_of_features = len(features)
 test_size_portion = 0.1
+dropout_rate = 0.1
 
 # ----------------------------------------------------------------------------------------
 # Import the libraries
@@ -93,19 +94,19 @@ model = Sequential()
 # Adding the first LSTM layer and some Dropout regularisation
 assert num_of_features == X_train.shape[2]
 model.add(LSTM(units = 50, return_sequences = True, input_shape = (X_train.shape[1], X_train.shape[2])))
-model.add(Dropout(0.2))
+model.add(Dropout(dropout_rate))
 
 # Adding a second LSTM layer and some Dropout regularisation
 model.add(LSTM(units = 50, return_sequences = True))
-model.add(Dropout(0.2))
+model.add(Dropout(dropout_rate))
 
 # Adding a third LSTM layer and some Dropout regularisation
 model.add(LSTM(units = 50, return_sequences = True))
-model.add(Dropout(0.2))
+model.add(Dropout(dropout_rate))
 
 # Adding a fourth LSTM layer and some Dropout regularisation
 model.add(LSTM(units = 50))
-model.add(Dropout(0.2))
+model.add(Dropout(dropout_rate))
 
 # Adding the output layer
 model.add(Dense(units = 1))
@@ -168,19 +169,19 @@ real_stock_price = scale_y_test.inverse_transform(y_test_scale)
 plot_test.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')  # 紅線表示真實股價
 plot_test.plot(predicted_stock_price_shifted, color = 'blue', label = 'Predicted Google Stock Price')  # 藍線表示預測股價
 plot_test.set_title('Google Stock Price Prediction')
-plot_test.set_xlabel('Time')
+plot_test.set_xlabel('Time', loc='left')
 plot_test.set_ylabel('Google Stock Price')
 plot_test.legend()
 
-
+# turn features to 1 string
 feature_all = ''
 for i in features:
     feature_all = feature_all + i + ", "
 
 # Packing all the plots and displaying them
 configuration = "Epochs: " + str(num_of_epochs) + " , Batch size: " + str(num_of_batch_size) + " , Timesteps: " + str(timesteps) \
-    + " , Days forward: " + str(days_forward) + " , Test size: " + str(test_size_portion) \
-    + " , Features: " + feature_all + "Target: " + target[0]
+    + " , Days forward: " + str(days_forward) + " , Test size: " + str(test_size_portion) + " , Dropout rate: " + str(dropout_rate) \
+    + "\nFeatures: " + feature_all + "Target: " + target[0]
 plt.figtext(0.9, 0.01, configuration, horizontalalignment = 'right', verticalalignment = 'bottom', wrap = True, fontsize = 12)
 plt.tight_layout()
 plt.show()
