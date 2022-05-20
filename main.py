@@ -10,7 +10,7 @@ num_of_features = len(features)
 test_size_portion = 0.1
 dropout_rate = 0.1
 num_of_label = 3 # 0:down, 1:flat, 2:up
-margin_rate = 0.01
+margin_rate = 0.015
 
 # ----------------------------------------------------------------------------------------
 # Import the libraries
@@ -26,11 +26,13 @@ dataset_in = pd.read_csv('googl.us.csv')
 # extract features
 X_raw = dataset_in[features]
 # extract targets
-temp = dataset_in[target].values.tolist()
+close = dataset_in['close'].values.tolist()
+open = dataset_in[target].values.tolist()
+
 y_raw = [0]
-for i in range(1, len(temp)):
-    diff = temp[i][0] - temp[i-1][0]
-    margin = temp[i-1][0] * margin_rate
+for i in range(1, len(open)):
+    diff = open[i][0] - close[i-1][0]
+    margin = close[i-1][0] * margin_rate
     if diff > margin :
         y_raw.append(2)
     elif diff < - margin :
@@ -132,7 +134,7 @@ model.add(Dense(3, activation='softmax'))
 
 # Compiling
 ##model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
+model.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['acc'])
 
 
 # ----------------------------------------------------------------------------------------
