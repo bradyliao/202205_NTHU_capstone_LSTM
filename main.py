@@ -1,16 +1,55 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 100
-num_of_batch_size = 32
+'''
+agenda
+
+save best model => the highest val acc / the lowest val loss
+
+optimizer
+learning rate decay / scheduling
+
+done
+--------------------------------
+not yet
+
+optimizer
+adam w -> momentum (may not need schedular)
+
+Customize acc
+https://keras.io/guides/training_with_built_in_methods/#custom-metrics
+
+early stoping
+it is based on acc
+
+Feature (加 delta)
+
+
+
+combine models (Functional API )
+Stationary (arima)
+https://zh.wikipedia.org/zh-tw/時間序列
+
+
+'''
+
+
+csv_file_name = 'GOOG.csv'
+num_of_epochs = 50
+num_of_batch_size = 128
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
 features = ['Open','High', 'Low', 'Close', 'Volume']
 target = ['Open']
 num_of_features = len(features)
 test_size_portion = 0.1
+validation_split_portion = 0.1
 dropout_rate = 0.1
 num_of_label = 3 # 0:down, 1:flat, 2:up
 margin_rate = 0.015
+
+initial_learning_rate = 0.1
+decay_steps = 1280
+decay_rate = 0.96
 
 # ----------------------------------------------------------------------------------------
 # Import the libraries
@@ -21,18 +60,18 @@ import pandas as pd
 # ----------------------------------------------------------------------------------------
 # process data
 # Import the dataset
-dataset_in = pd.read_csv('googl.us.csv')
+dataset_in = pd.read_csv(csv_file_name)
 
 # extract features
 X_raw = dataset_in[features]
 # extract targets
-close = dataset_in['close'].values.tolist()
+close = dataset_in['Close'].values.tolist()
 open = dataset_in[target].values.tolist()
 
 y_raw = [0]
 for i in range(1, len(open)):
-    diff = open[i][0] - close[i-1][0]
-    margin = close[i-1][0] * margin_rate
+    diff = open[i][0] - close[i-1]
+    margin = close[i-1] * margin_rate
     if diff > margin :
         y_raw.append(2)
     elif diff < - margin :
@@ -40,6 +79,8 @@ for i in range(1, len(open)):
     else:
         y_raw.append(1)
 
+
+print("len of open: ", len(open))
 
 # calculate total num of data
 total_num_data = len(X_raw)
@@ -56,18 +97,14 @@ from tensorflow.keras.utils import to_categorical
 scale_X_train = MinMaxScaler(feature_range = (0, 1))
 X_train_scale = scale_X_train.fit_transform(X_train_raw)
 
-##scale_y_train = MinMaxScaler(feature_range = (0, 1))
-##y_train_scale = scale_y_train.fit_transform(y_train_raw)
 y_train_label = to_categorical(y_train_raw)
 
 scale_X_test = MinMaxScaler(feature_range = (0, 1))
 X_test_scale = scale_X_test.fit_transform(X_test_raw)
 
-##scale_y_test = MinMaxScaler(feature_range = (0, 1))
-##y_test_scale = scale_y_test.fit_transform(y_test_raw)
 y_test_label = to_categorical(y_test_raw)
 
-
+print("len of y test label", len(y_test_label))
 
 
 # generate epochs
@@ -83,6 +120,7 @@ for i in range(timesteps, len(X_test_scale) - days_forward):
     X_test.append( X_test_scale [ (i - timesteps) : i , 0 : num_of_features ] ) # data of features
     y_test.append( y_test_label [ (i + days_forward) ] )                                                                                                # data of the to_categorical
 
+print("len of y_test: ", len(y_test))
 
 # convert to numpy array
 X_train, y_train, X_test, y_test = np.array(X_train), np.array(y_train), np.array(X_test), np.array(y_test)   # 轉成numpy array的格式，以利輸入 RNN
@@ -105,7 +143,7 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
-from keras.layers import BatchNormalization
+#from keras.layers import BatchNormalization
 
 
 # Initialising the RNN
@@ -132,14 +170,39 @@ model.add(Dropout(dropout_rate))
 ##model.add(Dense(units = 1))
 model.add(Dense(3, activation='softmax'))
 
+
+
+from keras.callbacks import LearningRateScheduler
+from tensorflow.keras import optimizers
+#lr = 
+#lr_schedule = LearningRateScheduler(lr)
+lr_schedule = optimizers.schedules.ExponentialDecay(
+    initial_learning_rate,
+    decay_steps,
+    decay_rate,
+    staircase=True)
+
+
 # Compiling
-##model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
-model.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['acc'])
+model.compile(optimizer = optimizers.Adam(learning_rate = lr_schedule), loss = 'categorical_crossentropy', metrics = ['acc'])
+
+
+# ----------------------------------------------------------------------------------------
+# checkpoint / learning rate / callbacks set up
+from keras.callbacks import ModelCheckpoint
+filepath="weights.best.hdf5"
+checkpoint = ModelCheckpoint(
+    filepath, monitor = 'val_loss', 
+    mode = 'min', # {'auto', 'min', 'max'}
+    save_best_only = True, # False: also save the model itself (structure)
+    verbose = 1 # 0: silent, 1: displays messages when the callback takes an action
+    )
+callbacks_list = [checkpoint]
 
 
 # ----------------------------------------------------------------------------------------
 # run model
-history = model.fit(X_train, y_train, validation_split = 0.2, shuffle = True, epochs = num_of_epochs, batch_size = num_of_batch_size)
+history = model.fit(X_train, y_train, validation_split = validation_split_portion, shuffle = True, epochs = num_of_epochs, batch_size = num_of_batch_size, callbacks = callbacks_list)
 
 
 # ----------------------------------------------------------------------------------------
@@ -147,19 +210,22 @@ history = model.fit(X_train, y_train, validation_split = 0.2, shuffle = True, ep
 predicted_y_test = model.predict(X_test)
 predicted_y_test = np.argmax(predicted_y_test, axis = 1)[:]   # to get the original scale
 
+# load best model
+model.load_weights("weights.best.hdf5")
+
 results = model.evaluate(X_test, y_test)
 
 
 
 # ----------------------------------------------------------------------------------------
 # shift right timesteps
-
+'''
 predicted_y_test_shifted = []
 for i in range(0, timesteps):
     predicted_y_test_shifted.append(None)
 for i in predicted_y_test:
     predicted_y_test_shifted.append(i)
-
+'''
 
 
 
@@ -168,8 +234,8 @@ data = [[0,0,0],
         [0,0,0]]
 
 
-for i in range(timesteps, len(predicted_y_test)):
-    data[ abs(y_test_raw[i]-2) ] [ predicted_y_test_shifted[i] ] += 1
+for i in range(0, len(predicted_y_test)):
+    data[ abs(y_test_raw[i]-2) ] [ predicted_y_test[i] ] += 1
 
 
 
@@ -180,9 +246,9 @@ for i in range(timesteps, len(predicted_y_test)):
 import matplotlib.pyplot as plt  # for ploting results
 
 
-plot_loss = plt.subplot2grid((2, 2), (0, 0))                #, colspan=2)
-plot_accu = plt.subplot2grid((2, 2), (0, 1))                #, rowspan=3, colspan=2)
-plot_test = plt.subplot2grid((2, 2), (1, 0))     #, rowspan=2)
+plot_loss = plt.subplot2grid((2, 2), (0, 0))
+plot_accu = plt.subplot2grid((2, 2), (0, 1))
+plot_test = plt.subplot2grid((2, 2), (1, 0))
 
 # Visualising the loss
 plot_loss.plot(history.history['loss'])
@@ -201,24 +267,17 @@ plot_accu.set_ylabel('accuracy')
 plot_accu.set_xlabel('epoch')
 plot_accu.legend(['Train', 'Validation'], loc='upper left')
 
-'''
-# Visualising the test results
-real_stock_price = scale_y_test.inverse_transform(y_test_scale)
-plot_test.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')  # 紅線表示真實股價
-plot_test.plot(predicted_stock_price_shifted, color = 'blue', label = 'Predicted Google Stock Price')  # 藍線表示預測股價
-plot_test.set_title('Google Stock Price Prediction')
-plot_test.set_xlabel('Time', loc='left')
-plot_test.set_ylabel('Google Stock Price')
-plot_test.legend()
-'''
+
 
 test_statistics = "test loss: " + str(results[0]) + "\ntest acc:" + str(results[1]) + "\nMargin rate: " + str(margin_rate)
 
 plot_test.axis('tight')
 plot_test.axis('off')
 plot_test.table(cellText=data,colLabels=['pred down', 'pred flat', 'pred up'], rowLabels=['real up', 'real flat', 'real down'], loc="center")
+
+
 plt.figtext(0.9, 0.15, test_statistics, horizontalalignment = 'right', verticalalignment = 'bottom', wrap = True, fontsize = 12)
-plot_test.legend()
+
 
 
 
@@ -235,5 +294,4 @@ configuration = "Epochs: " + str(num_of_epochs) + " , Batch size: " + str(num_of
 plt.figtext(0.9, 0.01, configuration, horizontalalignment = 'right', verticalalignment = 'bottom', wrap = True, fontsize = 12)
 plt.tight_layout()
 plt.show()
-
 
