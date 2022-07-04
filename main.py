@@ -1,6 +1,6 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 1
+num_of_epochs = 10
 num_of_batch_size = 32
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
@@ -112,20 +112,78 @@ model.add(Dropout(dropout_rate))
 model.add(Dense(units = 1))
 
 
+
+import keras.backend as K
 import tensorflow as tf
-import keras.losses
 
-def test_loss(y_train, y_pred):
-    print(shape(y_train))
-    squared_difference = tf.square(y_train - y_pred)
-    return tf.reduce_mean(squared_difference, axis=-1)  # Note the `axis=-1`
+def test_loss():
+    def loss(y_true, y_pred):
+        # y_diff = tf.square(y_pred - y_true)
+        # custom_loss = 0
+        # for i in range(1, num_of_batch_size):
+        #     custom_loss = custom_loss + ( (y_true[i] - y_true[i-1] ) * ( y_pred[i] - y_pred[i-1] ) ) * y_diff[i]
+        
+        # # calculating squared difference between target and predicted values 
+        # loss = K.square(y_pred - y_true)  # (batch_size, 2)
+        # print(loss)
+        # # multiplying the values with weights along batch dimension
+        # loss = loss * [0.3, 0.7]          # (batch_size, 2)
+        # # summing both loss values along batch dimension 
+        # custom_loss = K.sum(loss, axis=1)        # (batch_size,)
+        
+        
+        
+        # # https://towardsdatascience.com/customize-loss-function-to-make-lstm-model-more-applicable-in-stock-price-prediction-b1c50e50b16c
+        # #extract the "next day's price" of tensor
+        # y_true_next = y_true[1:] 
+        # y_pred_next = y_pred[1:]
+        # #extract the "today's price" of tensor
+        # y_true_tdy = y_true[:-1] 
+        # y_pred_tdy = y_pred[:-1]
+        
+        #  #substract to get up/down movement of the two tensors
+        # y_true_diff = tf.subtract(y_true_next, y_true_tdy) 
+        # y_pred_diff = tf.subtract(y_pred_next, y_pred_tdy)
+        # #create a standard tensor with zero value for comparison
+        # standard = tf.zeros_like(y_pred_diff)
+        # #compare with the standard; if true, UP; else DOWN
+        # y_true_move = tf.greater_equal(y_true_diff, standard) 
+        # y_pred_move = tf.greater_equal(y_pred_diff, standard)
+        
+        # #find indices where the directions are not the same
+        # condition = tf.not_equal(y_true_move, y_pred_move) 
+        # indices = tf.where(condition)
+        # ones = tf.ones_like(indices) 
+        # indices = tf.add(indices, ones)
 
+        # direction_loss = tf.Variable(tf.ones_like(y_pred), dtype='float32') 
+        # updates = K.cast(tf.ones_like(indices), dtype='float32')
+        # alpha = 1000
+        # direction_loss = tf.compat.v1.scatter_nd_update(direction_loss, indices,  alpha*updates )
+        # custom_loss = K.mean(tf.multiply(K.square(y_true - y_pred), direction_loss), axis=-1)
+        
+        
+        different_dir = tf.logical_or(
+        tf.logical_and ( tf.greater(y_true[1:] - y_true[:-1], 0.0) , tf.less(y_pred[1:] - y_pred[:-1], 0.0) ),
+        tf.logical_and ( tf.less(y_true[1:] - y_true[:-1], 0.0) , tf.greater(y_pred[1:] - y_pred[:-1], 0.0) )
+        )
+        
+        custom_loss = tf.keras.metrics.mean_squared_error(y_true, y_pred) * ( tf.cast(different_dir, tf.float32) * (3) - 1 )
+        
+        
+        
+        
+        
+        return custom_loss
+        
+    
+    return loss
 
 
 
 # Compiling
 # model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
-model.compile(optimizer = 'adam', loss='test_loss', metrics=["acc"], custom_objects={'test_loss': test_loss(y_train, y_pred)})
+model.compile(optimizer = 'adam', loss=test_loss(), metrics=["acc"])
 
 
 # ----------------------------------------------------------------------------------------
