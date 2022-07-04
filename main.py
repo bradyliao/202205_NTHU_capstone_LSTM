@@ -1,6 +1,6 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
-num_of_epochs = 50
+num_of_epochs = 1
 num_of_batch_size = 32
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
@@ -111,8 +111,21 @@ model.add(Dropout(dropout_rate))
 # Adding the output layer
 model.add(Dense(units = 1))
 
+
+import tensorflow as tf
+import keras.losses
+
+def test_loss(y_train, y_pred):
+    print(shape(y_train))
+    squared_difference = tf.square(y_train - y_pred)
+    return tf.reduce_mean(squared_difference, axis=-1)  # Note the `axis=-1`
+
+
+
+
 # Compiling
-model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
+# model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
+model.compile(optimizer = 'adam', loss='test_loss', metrics=["acc"], custom_objects={'test_loss': test_loss(y_train, y_pred)})
 
 
 # ----------------------------------------------------------------------------------------
