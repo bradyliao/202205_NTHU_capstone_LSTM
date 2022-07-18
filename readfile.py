@@ -1,7 +1,8 @@
-# https://ithelp.ithome.com.tw/articles/10206312
+import h5py
 
-num_of_epochs = 20
-num_of_batch_size = 32
+  
+num_of_epochs = 10
+num_of_batch_size = 3
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
 features = ['Open','High', 'Low', 'Close', 'Volume']
@@ -80,6 +81,7 @@ X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], X_test.shape[2]))
 
 
 
+
 # ----------------------------------------------------------------------------------------
 # setup model
 # Import the Keras libraries and packages
@@ -124,105 +126,103 @@ def test_loss():
             tf.logical_and ( tf.greater(y_true[1:] - y_true[:-1], 0.0) , tf.less(y_pred[1:] - y_pred[:-1], 0.0) ),
             tf.logical_and ( tf.less(y_true[1:] - y_true[:-1], 0.0) , tf.greater(y_pred[1:] - y_pred[:-1], 0.0) )
             )
+        
         custom_loss = tf.abs ( tf.subtract(y_true[-1], y_pred[-1]) ) * ( tf.cast(different_dir[-1], tf.float32) * (3) - 1 )
+        
+    
         return custom_loss
     return loss
 
 
 
-        # didn't work
+        # # calculating squared difference between target and predicted values 
+        # loss = K.square(y_pred - y_true)  # (batch_size, 2)
+        # print(loss)
+        # # multiplying the values with weights along batch dimension
+        # loss = loss * [0.3, 0.7]          # (batch_size, 2)
+        # # summing both loss values along batch dimension 
+        # custom_loss = K.sum(loss, axis=1)        # (batch_size,)
+        
+        
+        
         # # https://towardsdatascience.com/customize-loss-function-to-make-lstm-model-more-applicable-in-stock-price-prediction-b1c50e50b16c
+        # #extract the "next day's price" of tensor
+        # y_true_next = y_true[1:] 
+        # y_pred_next = y_pred[1:]
+        # #extract the "today's price" of tensor
+        # y_true_tdy = y_true[:-1] 
+        # y_pred_tdy = y_pred[:-1]
+        
+        #  #substract to get up/down movement of the two tensors
+        # y_true_diff = tf.subtract(y_true_next, y_true_tdy) 
+        # y_pred_diff = tf.subtract(y_pred_next, y_pred_tdy)
+        # #create a standard tensor with zero value for comparison
+        # standard = tf.zeros_like(y_pred_diff)
+        # #compare with the standard; if true, UP; else DOWN
+        # y_true_move = tf.greater_equal(y_true_diff, standard) 
+        # y_pred_move = tf.greater_equal(y_pred_diff, standard)
+        
+        # #find indices where the directions are not the same
+        # condition = tf.not_equal(y_true_move, y_pred_move) 
+        # indices = tf.where(condition)
+        # ones = tf.ones_like(indices) 
+        # indices = tf.add(indices, ones)
+
+        # direction_loss = tf.Variable(tf.ones_like(y_pred), dtype='float32') 
+        # updates = K.cast(tf.ones_like(indices), dtype='float32')
+        # alpha = 1000
+        # direction_loss = tf.compat.v1.scatter_nd_update(direction_loss, indices,  alpha*updates )
+        # custom_loss = K.mean(tf.multiply(K.square(y_true - y_pred), direction_loss), axis=-1)
 
 
 # Compiling
 # model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
 model.compile(optimizer = 'adam', loss=test_loss(), metrics=["acc"])
 
-
-# ----------------------------------------------------------------------------------------
-# checkpoint / learning rate / callbacks set up
-from keras.callbacks import ModelCheckpoint
-filepath="weights.best.hdf5"
-checkpoint = ModelCheckpoint(
-    filepath, monitor = 'val_loss', 
-    mode = 'min', # {'auto', 'min', 'max'}
-    save_best_only = True, # False: also save the model itself (structure)
-    verbose = 1 # 0: silent, 1: displays messages when the callback takes an action
-    )
-callbacks_list = [checkpoint]
-
-
-# ----------------------------------------------------------------------------------------
-# train model
-history = model.fit(X_train, y_train, validation_split = validation_split_portion, shuffle = False, epochs = num_of_epochs, batch_size = num_of_batch_size, callbacks = callbacks_list)
-
-
-# ----------------------------------------------------------------------------------------
-# load best model
 model.load_weights("weights.best.hdf5")
-results = model.evaluate(X_test, y_test)
-
-# predict
-predicted_stock_price = model.predict(X_test)
-predicted_stock_price = scale_y_test.inverse_transform(predicted_stock_price)  # to get the original scale
 
 
-# ----------------------------------------------------------------------------------------
-# shift right timesteps
-
-predicted_stock_price_shifted = []
-for i in range(0, timesteps):
-    predicted_stock_price_shifted.append(None)
-for i in predicted_stock_price:
-    predicted_stock_price_shifted.append(i[0])
 
 
-# ----------------------------------------------------------------------------------------
-# visualize 
-
-import matplotlib.pyplot as plt  # for ploting results
 
 
-plot_loss = plt.subplot2grid((2, 2), (0, 0))                #, colspan=2)
-plot_accu = plt.subplot2grid((2, 2), (0, 1))                #, rowspan=3, colspan=2)
-plot_test = plt.subplot2grid((2, 2), (1, 0), colspan=2)     #, rowspan=2)
-
-# Visualising the loss
-plot_loss.plot(history.history['loss'])
-plot_loss.plot(history.history['val_loss'])
-plot_loss.set_title('model loss')
-plot_loss.set_ylabel('loss')
-plot_loss.set_xlabel('epoch')
-plot_loss.legend(['Train', 'Validation'], loc='upper left')
+model_json = model.to_json()
+with open("model.json", "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+model.save_weights("model.h5")
 
 
-# Visualising the accuracy
-plot_accu.plot(history.history['acc'])
-plot_accu.plot(history.history['val_acc'])
-plot_accu.set_title('model accuracy')
-plot_accu.set_ylabel('accuracy')
-plot_accu.set_xlabel('epoch')
-plot_accu.legend(['Train', 'Validation'], loc='upper left')
+
+# serialize model to json
+json_model = model.to_json()
+#save the model architecture to JSON file
+with open('fashionmnist_model.json', 'w') as json_file:
+    json_file.write(json_model)
+#saving the weights of the model
+model.save_weights('FashionMNIST_weights.h5')
 
 
-# Visualising the test results
-real_stock_price = scale_y_test.inverse_transform(y_test_scale)
-plot_test.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')  # 紅線表示真實股價
-plot_test.plot(predicted_stock_price_shifted, color = 'blue', label = 'Predicted Google Stock Price')  # 藍線表示預測股價
-plot_test.set_title('Google Stock Price Prediction')
-plot_test.set_xlabel('Time', loc='left')
-plot_test.set_ylabel('Google Stock Price')
-plot_test.legend()
 
-# turn features to 1 string
-feature_all = ''
-for i in features:
-    feature_all = feature_all + i + ", "
 
-# Packing all the plots and displaying them
-configuration = "Epochs: " + str(num_of_epochs) + " , Batch size: " + str(num_of_batch_size) + " , Timesteps: " + str(timesteps) \
-    + " , Days forward: " + str(days_forward) + " , Test size: " + str(test_size_portion) + " , Dropout rate: " + str(dropout_rate) \
-    + "\nFeatures: " + feature_all + "Target: " + target[0]
-plt.figtext(0.9, 0.01, configuration, horizontalalignment = 'right', verticalalignment = 'bottom', wrap = True, fontsize = 12)
-plt.tight_layout()
-plt.show()
+
+
+
+
+# for layer in model.layers: print(layer.get_config(), layer.get_weights())
+
+
+
+
+
+
+
+
+
+
+
+
+
+weights = model.get_weights()
+
+print(weights)
