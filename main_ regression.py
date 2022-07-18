@@ -1,5 +1,6 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
+csv_file_name = 'GOOG.csv'
 num_of_epochs = 20
 num_of_batch_size = 32
 timesteps = 60
@@ -21,7 +22,7 @@ import pandas as pd
 # ----------------------------------------------------------------------------------------
 # process data
 # Import the dataset
-dataset_in = pd.read_csv('googl.us.csv')
+dataset_in = pd.read_csv(csv_file_name)
 
 # extract features
 X_raw = dataset_in[features]
