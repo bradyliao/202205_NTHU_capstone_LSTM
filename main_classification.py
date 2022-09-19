@@ -34,20 +34,20 @@ https://zh.wikipedia.org/zh-tw/時間序列
 
 
 csv_file_name = 'GOOG.csv'
-num_of_epochs = 50
-num_of_batch_size = 128
+num_of_epochs = 5
+num_of_batch_size = 64
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
-features = ['Open','High', 'Low', 'Close', 'Volume']
-target = ['Open']
+features = ['open','high', 'low', 'close', 'volume']
+target = ['close']
 num_of_features = len(features)
 test_size_portion = 0.1
 validation_split_portion = 0.1
 dropout_rate = 0.1
 num_of_label = 3 # 0:down, 1:flat, 2:up
-margin_rate = 0.015
+margin_rate = 0.01
 
-initial_learning_rate = 0.1
+initial_learning_rate = 0.0001
 decay_steps = 1280
 decay_rate = 0.96
 
@@ -62,15 +62,27 @@ import pandas as pd
 # Import the dataset
 dataset_in = pd.read_csv(csv_file_name)
 
+import talib
+
 # extract features
 X_raw = dataset_in[features]
+X_raw['MA20'] = talib.MA(dataset_in['close'], timeperiod = 20)
+X_raw.iloc[:20,5] = X_raw.iloc[:20,3] 
+num_of_features += 1
+
+X_raw['MA5'] = talib.MA(dataset_in['close'], timeperiod = 5)
+X_raw.iloc[:5,6] = X_raw.iloc[:5,3] 
+num_of_features += 1
+
+print(X_raw)
+X_raw.to_csv('testout.csv')
 # extract targets
-close = dataset_in['Close'].values.tolist()
-open = dataset_in[target].values.tolist()
+close = dataset_in['close'].values.tolist()
+open = dataset_in['open'].values.tolist()
 
 y_raw = [0]
 for i in range(1, len(open)):
-    diff = open[i][0] - close[i-1]
+    diff = close[i] - close[i-1]
     margin = close[i-1] * margin_rate
     if diff > margin :
         y_raw.append(2)
@@ -151,19 +163,19 @@ model = Sequential()
 
 # Adding the first LSTM layer and some Dropout regularisation
 assert num_of_features == X_train.shape[2]
-model.add(LSTM(units = 50, return_sequences = True, input_shape = (X_train.shape[1], X_train.shape[2])))
+model.add(LSTM(units = 128, return_sequences = True, input_shape = (X_train.shape[1], X_train.shape[2])))
 model.add(Dropout(dropout_rate))
 
 # Adding a second LSTM layer and some Dropout regularisation
-model.add(LSTM(units = 50, return_sequences = True))
-model.add(Dropout(dropout_rate))
+# model.add(LSTM(units = 50, return_sequences = True))
+# model.add(Dropout(dropout_rate))
 
 # Adding a third LSTM layer and some Dropout regularisation
-model.add(LSTM(units = 50, return_sequences = True))
+model.add(LSTM(units = 128, return_sequences = True))
 model.add(Dropout(dropout_rate))
 
 # Adding a fourth LSTM layer and some Dropout regularisation
-model.add(LSTM(units = 50))
+model.add(LSTM(units = 128))
 model.add(Dropout(dropout_rate))
 
 # Adding the output layer
@@ -174,7 +186,7 @@ model.add(Dense(3, activation='softmax'))
 
 from keras.callbacks import LearningRateScheduler
 from tensorflow.keras import optimizers
-#lr = 
+
 #lr_schedule = LearningRateScheduler(lr)
 lr_schedule = optimizers.schedules.ExponentialDecay(
     initial_learning_rate,
@@ -202,7 +214,7 @@ callbacks_list = [checkpoint]
 
 # ----------------------------------------------------------------------------------------
 # run model
-history = model.fit(X_train, y_train, validation_split = validation_split_portion, shuffle = True, epochs = num_of_epochs, batch_size = num_of_batch_size, callbacks = callbacks_list)
+history = model.fit(X_train, y_train, validation_split = validation_split_portion, shuffle = False, epochs = num_of_epochs, batch_size = num_of_batch_size, callbacks = callbacks_list)
 
 
 # ----------------------------------------------------------------------------------------

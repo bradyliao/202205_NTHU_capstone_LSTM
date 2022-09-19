@@ -1,0 +1,30 @@
+ValueError: No gradients provided for any variable: 
+([
+'lstm/lstm_cell/kernel:0', 
+'lstm/lstm_cell/recurrent_kernel:0', 
+'lstm/lstm_cell/bias:0', 
+'lstm_1/lstm_cell_1/kernel:0', 
+'lstm_1/lstm_cell_1/recurrent_kernel:0', 
+'lstm_1/lstm_cell_1/bias:0', 
+'lstm_2/lstm_cell_2/kernel:0', 
+'lstm_2/lstm_cell_2/recurrent_kernel:0', 
+'lstm_2/lstm_cell_2/bias:0', 
+'lstm_3/lstm_cell_3/kernel:0', 
+'lstm_3/lstm_cell_3/recurrent_kernel:0', 
+'lstm_3/lstm_cell_3/bias:0', 
+'dense/kernel:0', 
+'dense/bias:0'
+],). Provided `grads_and_vars` is (
+    (None, <tf.Variable 'lstm/lstm_cell/kernel:0' shape=(8, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm/lstm_cell/recurrent_kernel:0' shape=(50, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm/lstm_cell/bias:0' shape=(200,) dtype=float32>), 
+    (None, <tf.Variable 'lstm_1/lstm_cell_1/kernel:0' shape=(50, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm_1/lstm_cell_1/recurrent_kernel:0' shape=(50, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm_1/lstm_cell_1/bias:0' shape=(200,) dtype=float32>), 
+    (None, <tf.Variable 'lstm_2/lstm_cell_2/kernel:0' shape=(50, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm_2/lstm_cell_2/recurrent_kernel:0' shape=(50, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm_2/lstm_cell_2/bias:0' shape=(200,) dtype=float32>), 
+    (None, <tf.Variable 'lstm_3/lstm_cell_3/kernel:0' shape=(50, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm_3/lstm_cell_3/recurrent_kernel:0' shape=(50, 200) dtype=float32>), 
+    (None, <tf.Variable 'lstm_3/lstm_cell_3/bias:0' shape=(200,) dtype=float32>), 
+    (None, <tf.Variable 'dense/kernel:0' sha

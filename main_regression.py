@@ -1,23 +1,36 @@
 # https://ithelp.ithome.com.tw/articles/10206312
 
 csv_file_name = 'GOOG.csv'
-num_of_epochs = 20
+num_of_epochs = 50
 num_of_batch_size = 32
 timesteps = 60
 days_forward = 0 # predicting how many days forward, 0 being the immediate next
-features = ['Open','High', 'Low', 'Close', 'Volume']
-target = ['Close']
+features = ['open','high', 'low', 'close', 'volume']
+target = ['close']
 num_of_features = len(features)
 test_size_portion = 0.1
 dropout_rate = 0.2
 
+
+
+
 validation_split_portion = 0.1
+
+
+initial_learning_rate = 0.001
+decay_steps= 1 # num_of_epochs * 0.1
+decay_rate = 0.6
+momentum = 0.8
+
+
 
 # ----------------------------------------------------------------------------------------
 # Import the libraries
 from turtle import shape
 import numpy as np
 import pandas as pd
+import talib
+from talib import abstract
 
 # ----------------------------------------------------------------------------------------
 # process data
@@ -26,8 +39,46 @@ dataset_in = pd.read_csv(csv_file_name)
 
 # extract features
 X_raw = dataset_in[features]
+
+
+X_raw['MA5'] = talib.MA(dataset_in['close'], timeperiod = 5)
+num_of_features += 1
+X_raw['MA10'] = talib.MA(dataset_in['close'], timeperiod = 10)
+num_of_features += 1
+X_raw['MA20'] = talib.MA(dataset_in['close'], timeperiod = 20)
+num_of_features += 1
+
+MACDs = eval('abstract.'+'MACD'+'(dataset_in)')
+X_raw['macd'] = MACDs['macd']
+X_raw['macdsignal'] = MACDs['macdsignal']
+X_raw['macdhist'] = MACDs['macdhist']
+num_of_features += 3
+
+# RSI = eval('abstract.'+'RSI'+'(dataset_in)')
+# X_raw['rsi'] = RSI
+# num_of_features += 1
+
+OBV = eval('abstract.'+'OBV'+'(dataset_in)')
+X_raw['obv'] = OBV
+num_of_features += 1
+
+# ADX = eval('abstract.'+'ADX'+'(dataset_in)')
+# X_raw['adx'] = ADX
+# num_of_features += 1
+
+
+
+# print(X_raw)
+# exit()
+
+X_raw = X_raw[33:]
+# X_raw = X_raw.dropna()
+
+
+
+
 # extract targets
-y_raw = dataset_in[target]
+y_raw = X_raw[target]
 
 # calculate total num of data
 total_num_data = len(X_raw)
@@ -100,12 +151,12 @@ model.add(LSTM(units = 50, return_sequences = True, input_shape = (X_train.shape
 model.add(Dropout(dropout_rate))
 
 # Adding a second LSTM layer and some Dropout regularisation
-model.add(LSTM(units = 50, return_sequences = True))
-model.add(Dropout(dropout_rate))
+# model.add(LSTM(units = 50, return_sequences = True))
+# model.add(Dropout(dropout_rate))
 
 # Adding a third LSTM layer and some Dropout regularisation
-model.add(LSTM(units = 50, return_sequences = True))
-model.add(Dropout(dropout_rate))
+# model.add(LSTM(units = 50, return_sequences = True))
+# model.add(Dropout(dropout_rate))
 
 # Adding a fourth LSTM layer and some Dropout regularisation
 model.add(LSTM(units = 50))
@@ -118,26 +169,75 @@ model.add(Dense(units = 1))
 
 import keras.backend as K
 import tensorflow as tf
+from keras import metrics
+import sys
 
-def test_loss():
-    def loss(y_true, y_pred):
-        different_dir = tf.logical_or(
-            tf.logical_and ( tf.greater(y_true[1:] - y_true[:-1], 0.0) , tf.less(y_pred[1:] - y_pred[:-1], 0.0) ),
-            tf.logical_and ( tf.less(y_true[1:] - y_true[:-1], 0.0) , tf.greater(y_pred[1:] - y_pred[:-1], 0.0) )
-            )
-        custom_loss = tf.abs ( tf.subtract(y_true[-1], y_pred[-1]) ) * ( tf.cast(different_dir[-1], tf.float32) * (3) - 1 )
-        return custom_loss
-    return loss
+def custo_loss(y_true, y_pred):
+    # https://stackoverflow.com/questions/46876213/custom-mean-directional-accuracy-loss-function-in-keras
+    
+    value_diff = tf.abs( tf.subtract(y_true, y_pred) )
+    
+    y_true = tf.concat([[[0]], y_true], 0)
+    y_pred = tf.concat([[[0]], y_pred], 0)
+    
+    sign_diff = tf.cast( tf.not_equal(tf.sign(y_true[1:] - y_true[:-1]), tf.sign(y_pred[1:] - y_pred[:-1])) , tf.float32 )
+    sign_diff = tf.add(sign_diff, 1)
+    
+    return tf.multiply(sign_diff, value_diff)
+    
+    
+    # didn't work
+    # # https://towardsdatascience.com/customize-loss-function-to-make-lstm-model-more-applicable-in-stock-price-prediction-b1c50e50b16c
 
 
+def custo_acc(y_true, y_pred):
+    within = 0
+    for i in range(0, len(y_true)):
+        if ( abs(y_pred[i] - y_true[i])/y_true[i] < acc_threshold ):
+            within += 1
+    return within/len(y_true)
 
-        # didn't work
-        # # https://towardsdatascience.com/customize-loss-function-to-make-lstm-model-more-applicable-in-stock-price-prediction-b1c50e50b16c
+
+from keras.callbacks import LearningRateScheduler
+from tensorflow.keras import optimizers
+
+# learning rate
+# lr_schedule = optimizers.schedules.ExponentialDecay(
+#     initial_learning_rate,
+#     decay_steps,
+#     decay_rate,
+#     staircase=True)
+
+# sgd = optimizers.SGD(lr = initial_learning_rate, momentum = momentum, decay = decay_rate, nesterov = False)
+
+
+# loss_method = 'mean_squared_error'
+# loss_method_str = 'mean_squared_error'
+loss_method = custo_loss
+loss_method_str = 'custo_loss'
+val_loss_method_str = 'val_' + loss_method_str
+
+
+# acc_method = 'acc'
+# acc_method_str = 'acc'
+acc_method = custo_acc
+acc_method_str = 'custo_acc'
+acc_threshold = 0.01
+val_acc_method_str = 'val_' + acc_method_str
 
 
 # Compiling
-# model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics=["acc"])
-model.compile(optimizer = 'adam', loss=test_loss(), metrics=["acc"])
+
+model.compile(optimizer = 'adam', loss = loss_method, metrics=[acc_method])
+
+# model.compile(optimizer = 'sgd', loss = loss_method, metrics=[acc_method])
+
+# model.compile(optimizer = optimizers.Adam(learning_rate = lr_schedule), loss = loss_method, metrics=[acc_method])
+
+
+# model.compile(optimizer = sgd, loss = loss_method, metrics=[acc_method])
+
+
 
 
 # ----------------------------------------------------------------------------------------
@@ -145,8 +245,9 @@ model.compile(optimizer = 'adam', loss=test_loss(), metrics=["acc"])
 from keras.callbacks import ModelCheckpoint
 filepath="weights.best.hdf5"
 checkpoint = ModelCheckpoint(
-    filepath, monitor = 'val_loss', 
-    mode = 'min', # {'auto', 'min', 'max'}
+    filepath,
+    monitor = val_acc_method_str, 
+    mode = 'max', # {'auto', 'min', 'max'}
     save_best_only = True, # False: also save the model itself (structure)
     verbose = 1 # 0: silent, 1: displays messages when the callback takes an action
     )
@@ -155,7 +256,7 @@ callbacks_list = [checkpoint]
 
 # ----------------------------------------------------------------------------------------
 # train model
-history = model.fit(X_train, y_train, validation_split = validation_split_portion, shuffle = False, epochs = num_of_epochs, batch_size = num_of_batch_size, callbacks = callbacks_list)
+history = model.fit(X_train, y_train, validation_split = validation_split_portion, shuffle = True, epochs = num_of_epochs, batch_size = num_of_batch_size, callbacks = callbacks_list)
 
 
 # ----------------------------------------------------------------------------------------
@@ -197,10 +298,19 @@ plot_loss.set_xlabel('epoch')
 plot_loss.legend(['Train', 'Validation'], loc='upper left')
 
 
+# # Visualising the accuracy
+# plot_accu.plot(history.history['acc'])
+# plot_accu.plot(history.history['val_acc'])
+# plot_accu.set_title('model acc (==, built-in)')
+# plot_accu.set_ylabel('accuracy')
+# plot_accu.set_xlabel('epoch')
+# plot_accu.legend(['Train', 'Validation'], loc='upper left')
+
+
 # Visualising the accuracy
-plot_accu.plot(history.history['acc'])
-plot_accu.plot(history.history['val_acc'])
-plot_accu.set_title('model accuracy')
+plot_accu.plot(history.history[acc_method_str])
+plot_accu.plot(history.history[val_acc_method_str])
+plot_accu.set_title('model acc (threshold: ' + str(acc_threshold) + ')')
 plot_accu.set_ylabel('accuracy')
 plot_accu.set_xlabel('epoch')
 plot_accu.legend(['Train', 'Validation'], loc='upper left')
